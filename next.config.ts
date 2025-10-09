@@ -10,9 +10,11 @@ const nextConfig: NextConfig = {
   output: undefined, // Remove any output config that might cause static export
   webpack: (config, { dev }) => {
     if (dev) {
-      // 禁用 webpack 的热模块替换
+      // 优化 webpack 配置但不禁用热模块替换
       config.watchOptions = {
-        ignored: ['**/*'], // 忽略所有文件变化
+        // 不再忽略所有文件变化，允许静态资源正常服务
+        aggregateTimeout: 300,
+        poll: 1000,
       };
     }
     return config;
