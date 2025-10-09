@@ -24,6 +24,9 @@ export function Footer() {
               <Link href="/careers" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Careers
               </Link>
+              <Link href="/automation-demo" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Automation Demo
+              </Link>
             </div>
           </div>
 
