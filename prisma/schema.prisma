@@ -1,0 +1,854 @@
+// This is your Prisma schema file for Pizzaxperts.com
+// Pizza ordering and management system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User roles and authentication
+enum UserRole {
+  CUSTOMER
+  STAFF
+  MANAGER
+  ADMIN
+  DELIVERY_PARTNER
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CREDIT_CARD
+  DEBIT_CARD
+  DIGITAL_WALLET
+  BANK_TRANSFER
+}
+
+// Automation and scheduling enums
+enum MenuScheduleType {
+  BREAKFAST
+  LUNCH
+  SNACKS
+  DINNER
+  LATE_NIGHT
+  SPECIAL
+}
+
+enum NotificationType {
+  PUSH
+  SMS
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  SCHEDULED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum OfferRuleType {
+  BUY_ONE_GET_ONE
+  PERCENTAGE_DISCOUNT
+  FIXED_AMOUNT_DISCOUNT
+  FREE_ITEM
+  COMBO_DEAL
+  LOYALTY_BONUS
+}
+
+enum OfferCondition {
+  ORDER_AMOUNT_ABOVE
+  TIME_BASED
+  DAY_BASED
+  USER_FREQUENCY
+  ITEM_SPECIFIC
+  CATEGORY_SPECIFIC
+  NEW_USER
+  LOYALTY_TIER
+}
+
+// Core models
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String?
+  phone           String?
+  password        String?
+  role            UserRole @default(CUSTOMER)
+  avatar          String?
+  isActive        Boolean  @default(true)
+  emailVerified   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  addresses       Address[]
+  orders          Order[]
+  reviews         Review[]
+  payments        Payment[]
+  loyaltyPoints   LoyaltyPoint[]
+  storeStaff      StoreStaff[]
+  deliveryOrders  DeliveryOrder[] @relation("DeliveryOrders")
+  userOffers      UserOffer[]
+  userPreferences UserPreference?
+  notificationLogs NotificationLog[]
+  wallet          Wallet?
+  subscriptions   Subscription[]
+  referrals       Referral[] @relation("ReferrerReferrals")
+  refereeReferrals Referral[] @relation("RefereeReferrals")
+  supportTickets  SupportTicket[]
+  customerSegments CustomerSegmentData[]
+  
+  @@map("users")
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  address     String
+  phone       String
+  email       String
+  logo        String?
+  coverImage  String?
+  isActive    Boolean  @default(true)
+  openingHours String  // JSON string for opening hours
+  deliveryRadius Float @default(5.0) // in kilometers
+  minOrderAmount Float @default(0.0)
+  deliveryFee    Float @default(0.0)
+  taxRate        Float @default(0.0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  menuItems      MenuItem[]
+  categories     Category[]
+  orders         Order[]
+  staff          StoreStaff[]
+  inventory      InventoryItem[]
+  promotions     Promotion[]
+  menuSchedules  MenuSchedule[]
+  notificationTemplates NotificationTemplate[]
+  scheduledNotifications ScheduledNotification[]
+  offerRules     OfferRule[]
+  kitchenStatusLogs KitchenStatusLog[]
+  dailyReports   DailyReport[]
+  campaigns      Campaign[]
+  referralPrograms ReferralProgram[]
+  scheduledReports ScheduledReport[]
+  customerSegments CustomerSegment[]
+  
+  @@map("stores")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  image       String?
+  isActive    Boolean  @default(true)
+  displayOrder Int     @default(0)
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  menuItems   MenuItem[]
+  
+  @@map("categories")
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  image       String?
+  isActive    Boolean  @default(true)
+  isVegetarian Boolean @default(false)
+  isVegan     Boolean  @default(false)
+  isSpicy     Boolean  @default(false)
+  preparationTime Int @default(15) // in minutes
+  categoryId  String
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderItems  OrderItem[]
+  customizationOptions MenuItemCustomization[]
+  inventory   InventoryItem[]
+  scheduledMenuItems ScheduledMenuItem[]
+  
+  @@map("menu_items")
+}
+
+model MenuItemCustomization {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // "size", "crust", "sauce", "topping", "extra"
+  priceAdjustment Float @default(0.0)
+  isAvailable Boolean  @default(true)
+  menuItemId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  orderItemCustomizations OrderItemCustomization[]
+  
+  @@map("menu_item_customizations")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  street      String
+  city        String
+  state       String
+  postalCode  String
+  country     String
+  latitude    Float?
+  longitude   Float?
+  isDefault   Boolean  @default(false)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  
+  @@map("addresses")
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  orderNumber       String      @unique
+  userId            String?
+  storeId           String
+  addressId         String?
+  status            OrderStatus @default(PENDING)
+  subtotal          Float
+  taxAmount         Float
+  deliveryFee       Float
+  discountAmount    Float       @default(0.0)
+  totalAmount       Float
+  specialInstructions String?
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  paymentMethod     PaymentMethod?
+  paymentStatus     PaymentStatus @default(PENDING)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  user              User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  store             Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  address           Address?    @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  orderItems        OrderItem[]
+  payments          Payment[]
+  reviews           Review[]
+  deliveryOrder     DeliveryOrder?
+  orderPromotions   OrderPromotion[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  menuItemId   String
+  quantity     Int      @default(1)
+  unitPrice    Float
+  totalPrice   Float
+  specialNotes String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  customizations OrderItemCustomization[]
+  
+  @@map("order_items")
+}
+
+model OrderItemCustomization {
+  id                 String   @id @default(cuid())
+  orderItemId        String
+  customizationId    String
+  priceAdjustment    Float
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  orderItem          OrderItem              @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  customization      MenuItemCustomization  @relation(fields: [customizationId], references: [id], onDelete: Cascade)
+  
+  @@map("order_item_customizations")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId        String
+  userId         String?
+  amount         Float
+  paymentMethod  PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  transactionId  String?
+  paymentGateway String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("payments")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  orderId   String
+  rating    Int      // 1-5 stars
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@map("reviews")
+}
+
+model LoyaltyPoint {
+  id          String   @id @default(cuid())
+  userId      String
+  points      Int      @default(0)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("loyalty_points")
+}
+
+model Promotion {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  code        String   @unique
+  type        String   // "percentage", "fixed_amount", "buy_one_get_one"
+  value       Float
+  minOrderAmount Float @default(0.0)
+  maxDiscountAmount Float?
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  usageLimit  Int?
+  usageCount  Int      @default(0)
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderPromotions OrderPromotion[]
+  
+  @@map("promotions")
+}
+
+model OrderPromotion {
+  id           String   @id @default(cuid())
+  orderId      String
+  promotionId  String
+  discountAmount Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  promotion    Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  
+  @@map("order_promotions")
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  menuItemId  String
+  storeId     String
+  quantity    Float
+  unit        String   // "pieces", "kg", "liters", etc.
+  lowStockThreshold Float
+  lastRestock DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@map("inventory_items")
+}
+
+model StoreStaff {
+  id          String   @id @default(cuid())
+  userId      String
+  storeId     String
+  position    String   // "manager", "chef", "cashier", etc.
+  salary      Float?
+  hireDate    DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@map("store_staff")
+}
+
+model DeliveryOrder {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  deliveryPartnerId String?
+  status      String   @default("assigned") // "assigned", "picked_up", "delivered"
+  pickupTime  DateTime?
+  deliveryTime DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  order              Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deliveryPartner    User?             @relation("DeliveryOrders", fields: [deliveryPartnerId], references: [id], onDelete: SetNull)
+  
+  @@map("delivery_orders")
+}
+
+// Automation and scheduling models
+model MenuSchedule {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  type        MenuScheduleType
+  startTime   String           // HH:mm format
+  endTime     String           // HH:mm format
+  daysOfWeek  String           // JSON array of days [0-6] where 0=Sunday
+  isActive    Boolean          @default(true)
+  storeId     String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  menuItems   ScheduledMenuItem[]
+  
+  @@map("menu_schedules")
+}
+
+model ScheduledMenuItem {
+  id              String   @id @default(cuid())
+  menuScheduleId  String
+  menuItemId      String
+  isHighlighted   Boolean  @default(false)
+  displayOrder    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  menuSchedule    MenuSchedule @relation(fields: [menuScheduleId], references: [id], onDelete: Cascade)
+  menuItem        MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  
+  @@map("scheduled_menu_items")
+}
+
+model NotificationTemplate {
+  id          String           @id @default(cuid())
+  name        String
+  title       String
+  message     String
+  type        NotificationType
+  isActive    Boolean          @default(true)
+  storeId     String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  scheduledNotifications ScheduledNotification[]
+  
+  @@map("notification_templates")
+}
+
+model ScheduledNotification {
+  id                String             @id @default(cuid())
+  templateId        String
+  scheduleTime      String             // HH:mm format
+  daysOfWeek        String             // JSON array of days [0-6]
+  sendImmediately   Boolean            @default(false)
+  status            NotificationStatus @default(SCHEDULED)
+  targetAudience    String             // JSON object for targeting rules
+  maxSendCount      Int?
+  sentCount         Int                @default(0)
+  lastSentAt        DateTime?
+  nextSendAt        DateTime?
+  storeId           String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  template          NotificationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  store             Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  notificationLogs  NotificationLog[]
+  
+  @@map("scheduled_notifications")
+}
+
+model NotificationLog {
+  id                  String             @id @default(cuid())
+  scheduledNotificationId String
+  userId              String
+  status              NotificationStatus
+  sentAt              DateTime?
+  errorMessage        String?
+  createdAt           DateTime           @default(now())
+
+  // Relations
+  scheduledNotification ScheduledNotification @relation(fields: [scheduledNotificationId], references: [id], onDelete: Cascade)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notification_logs")
+}
+
+model OfferRule {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  type        OfferRuleType
+  conditions  String         // JSON object for conditions
+  actions     String         // JSON object for actions
+  startTime   String         // HH:mm format
+  endTime     String         // HH:mm format
+  daysOfWeek  String         // JSON array of days [0-6]
+  isActive    Boolean        @default(true)
+  priority    Int            @default(0)
+  maxUsage    Int?
+  usageCount  Int            @default(0)
+  storeId     String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  store       Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userOffers  UserOffer[]
+  offerPerformance OfferPerformance[]
+  
+  @@map("offer_rules")
+}
+
+model UserOffer {
+  id          String   @id @default(cuid())
+  userId      String
+  offerRuleId String
+  isUsed      Boolean  @default(false)
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offerRule   OfferRule @relation(fields: [offerRuleId], references: [id], onDelete: Cascade)
+  
+  @@map("user_offers")
+}
+
+model UserPreference {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  favoriteItems   String?  // JSON array of menuItem IDs
+  dietaryRestrictions String? // JSON array of restrictions
+  spicePreference String?  // "none", "mild", "medium", "hot"
+  orderFrequency  Int?     // orders per month
+  avgOrderValue   Float?   // average order value
+  preferredCuisines String? // JSON array of cuisine types
+  lastOrderAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_preferences")
+}
+
+model Wallet {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  balance     Float    @default(0.0)
+  currency    String   @default("INR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("wallets")
+}
+
+model Subscription {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // "premium", "vip", "family"
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  autoRenew   Boolean  @default(false)
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("subscriptions")
+}
+
+model Referral {
+  id          String   @id @default(cuid())
+  referrerId  String
+  refereeId   String
+  code        String   @unique
+  status      String   @default("pending") // "pending", "completed", "expired"
+  reward      Float?
+  rewardedAt  DateTime?
+  expiresAt   DateTime?
+  referralProgramId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  referrer    User     @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee     User     @relation("RefereeReferrals", fields: [refereeId], references: [id], onDelete: Cascade)
+  referralProgram ReferralProgram? @relation(fields: [referralProgramId], references: [id], onDelete: SetNull)
+  
+  @@map("referrals")
+}
+
+model ReferralProgram {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  referrerReward Float
+  refereeReward Float
+  minOrderAmount Float
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  referrals   Referral[]
+  
+  @@map("referral_programs")
+}
+
+model SupportTicket {
+  id          String   @id @default(cuid())
+  userId      String
+  subject     String
+  description String
+  status      String   @default("open") // "open", "in_progress", "resolved", "closed"
+  priority    String   @default("medium") // "low", "medium", "high", "urgent"
+  assignedTo  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("support_tickets")
+}
+
+model KitchenStatusLog {
+  id          String   @id @default(cuid())
+  storeId     String
+  status      String   // "busy", "normal", "slow"
+  orderCount  Int
+  avgPrepTime Int      // in minutes
+  timestamp   DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@map("kitchen_status_logs")
+}
+
+model DailyReport {
+  id          String   @id @default(cuid())
+  storeId     String
+  date        DateTime // YYYY-MM-DD format
+  totalOrders Int      @default(0)
+  totalRevenue Float    @default(0.0)
+  avgOrderValue Float   @default(0.0)
+  popularItems String?  // JSON array of popular item IDs
+  peakHours   String?  // JSON array of peak hours
+  inventoryUsed String? // JSON object of inventory usage
+  staffPerformance String? // JSON object of staff performance
+  createdAt   DateTime @default(now())
+
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@map("daily_reports")
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // "email", "sms", "push", "social"
+  targetAudience String // JSON object for targeting
+  content     String   // JSON object for campaign content
+  status      String   @default("draft") // "draft", "scheduled", "active", "completed", "cancelled"
+  startDate   DateTime
+  endDate     DateTime?
+  budget      Float?
+  spent       Float    @default(0.0)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@map("campaigns")
+}
+
+model CustomerSegment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  criteria    String   // JSON object for segmentation criteria
+  userCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerSegments CustomerSegmentData[]
+  
+  @@map("customer_segments")
+}
+
+model CustomerSegmentData {
+  id          String   @id @default(cuid())
+  userId      String
+  segmentId   String
+  score       Float?   // relevance score
+  metadata    String?  // JSON object for additional data
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  segment     CustomerSegment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  
+  @@map("customer_segment_data")
+}
+
+model ScheduledReport {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // "daily", "weekly", "monthly", "custom"
+  format      String   // "pdf", "excel", "email"
+  recipients  String   // JSON array of email addresses
+  schedule    String   // JSON object for schedule configuration
+  isActive    Boolean  @default(true)
+  lastSentAt  DateTime?
+  nextSendAt  DateTime?
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  reportGenerations ReportGeneration[]
+  
+  @@map("scheduled_reports")
+}
+
+model ReportGeneration {
+  id                  String   @id @default(cuid())
+  scheduledReportId   String
+  generatedAt         DateTime @default(now())
+  fileUrl             String?
+  status              String   @default("pending") // "pending", "completed", "failed"
+  errorMessage        String?
+
+  // Relations
+  scheduledReport     ScheduledReport @relation(fields: [scheduledReportId], references: [id], onDelete: Cascade)
+  
+  @@map("report_generations")
+}
+
+model OfferPerformance {
+  id                  String   @id @default(cuid())
+  offerRuleId         String
+  date                DateTime
+  impressions         Int      @default(0)
+  clicks              Int      @default(0)
+  conversions         Int      @default(0)
+  revenue             Float    @default(0.0)
+  cost                Float    @default(0.0)
+  roi                 Float?   // Return on Investment
+  createdAt           DateTime @default(now())
+
+  // Relations
+  offerRule           OfferRule @relation(fields: [offerRuleId], references: [id], onDelete: Cascade)
+  
+  @@map("offer_performance")
+}
