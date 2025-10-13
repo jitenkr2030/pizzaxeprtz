@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "nodemon --exec \"npx tsx server.ts\" --watch server.ts --watch src --ext ts,tsx,js,jsx 2>&1 | tee dev.log",
+<<<<<<< HEAD
     "build": "next build",
+=======
+    "build": "prisma generate && next build",
+>>>>>>> 9d74d848449b91ae002cca39340c62649c8c9c3d
     "start": "NODE_ENV=production tsx server.ts 2>&1 | tee server.log",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -12,7 +16,12 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
+<<<<<<< HEAD
     "db:setup": "prisma db push && prisma generate && npm run db:seed"
+=======
+    "db:setup": "prisma db push && prisma generate && npm run db:seed",
+    "postinstall": "prisma generate"
+>>>>>>> 9d74d848449b91ae002cca39340c62649c8c9c3d
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

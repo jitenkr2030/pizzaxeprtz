@@ -1,4 +1,16 @@
+<<<<<<< HEAD
 # 🚀 Welcome to Z.ai Code Scaffold
+=======
+# 🍕 PizzaXperts - Advanced Pizza Ordering & Management System
+
+**🚀 STATUS: ACTIVELY DEVELOPED - LAST UPDATED: Mon Oct 13 11:31:01 UTC 2025**
+
+A comprehensive pizza ordering and restaurant management system built with modern web technologies, featuring advanced automation, real-time tracking, and intelligent business analytics.
+
+---
+
+## 🚀 Welcome to Z.ai Code Scaffold
+>>>>>>> 9d74d848449b91ae002cca39340c62649c8c9c3d
 
 A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
 
@@ -139,3 +151,8 @@ This scaffold includes a comprehensive set of modern web development tools:
 ---
 
 Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+<<<<<<< HEAD
+=======
+# Repository last updated: Mon Oct 13 10:59:20 UTC 2025
+# Repository last updated: Mon Oct 13 11:31:01 UTC 2025
+>>>>>>> 9d74d848449b91ae002cca39340c62649c8c9c3d
